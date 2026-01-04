@@ -1,5 +1,17 @@
 @import 'tailwindcss';
 
+@theme {
+  --color-terminal-bg: #0a0e17;
+  --color-terminal-panel: #0f1419;
+  --color-terminal-border: #1a1f2e;
+  --color-terminal-accent: #00d4ff;
+  --color-terminal-green: #00ff88;
+  --color-terminal-red: #ff3366;
+  --color-terminal-yellow: #ffcc00;
+  --color-terminal-text: #e0e0e0;
+  --color-terminal-textMuted: #8a8f98;
+}
+
 @layer base {
   body {
     background-color: #0a0e17;
