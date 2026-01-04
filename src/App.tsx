@@ -1,8 +1,8 @@
-import TradingDashboard from './components/TradingDashboard'
-import './index.css'
+import TradingDashboard from './components/TradingDashboard';
+import './index.css';
 
 function App() {
-  return <TradingDashboard />
+  return <TradingDashboard />;
 }
 
-export default App
+export default App;

@@ -1,339 +1,283 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useMarketStore, startAutoRefresh, stopAutoRefresh } from '../store/marketStore';
-import AssetCard from './AssetCard';
-import TradingChart from './TradingChart';
-import { Activity, BarChart3, TrendingUp, Radio, Zap } from 'lucide-react';
-
-type ViewMode = 'overview' | 'detailed';
-type Tab = 'all' | 'majors' | 'alts';
+import { TrendingUp, TrendingDown, Activity, Zap, AlertCircle } from 'lucide-react';
 
 export default function TradingDashboard() {
   const {
     assets,
-    selectedAsset,
+    selectedAssetId,
     metrics,
+    globalStats,
     isLoading,
-    lastUpdate,
+    error,
+    updateCount,
     setSelectedAsset,
-    initializeData,
+    clearError,
   } = useMarketStore();
 
-  const [viewMode, setViewMode] = useState<ViewMode>('overview');
-  const [activeTab, setActiveTab] = useState<Tab>('all');
+  const selectedMetrics = metrics.get(selectedAssetId);
 
   useEffect(() => {
-    initializeData();
-    startAutoRefresh();
+    startAutoRefresh(1300);
+    return () => stopAutoRefresh();
+  }, []);
 
-    return () => {
-      stopAutoRefresh();
-    };
-  }, [initializeData]);
+  const formatPrice = (price: number) => {
+    if (price >= 1000) return `$${price.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+    if (price >= 1) return `$${price.toFixed(4)}`;
+    return `$${price.toFixed(6)}`;
+  };
 
-  const selectedMetrics = selectedAsset ? metrics.get(selectedAsset) : null;
-
-  // Filter assets based on tab
-  const filteredAssets = assets.filter(asset => {
-    if (activeTab === 'majors') {
-      return ['BTC', 'ETH', 'SOL'].includes(asset.symbol.toUpperCase());
-    }
-    if (activeTab === 'alts') {
-      return !['BTC', 'ETH', 'SOL'].includes(asset.symbol.toUpperCase());
-    }
-    return true;
-  });
-
-  const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
+  const formatPercent = (pct: number) => {
+    return `${pct > 0 ? '+' : ''}${pct.toFixed(2)}%`;
   };
 
   return (
-    <div className="min-h-screen bg-terminal-bg text-terminal-text">
+    <div className="min-h-screen bg-[#0a0e17] text-[#e0e0e0]">
       {/* Header */}
-      <header className="bg-terminal-panel border-b border-terminal-border sticky top-0 z-50 backdrop-blur-sm bg-terminal-panel/95">
+      <header className="bg-[#0f1419] border-b border-[#1a1f2e] sticky top-0 z-50">
         <div className="px-4 lg:px-6 py-3">
           <div className="flex items-center justify-between">
-            {/* Logo and Title */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-terminal-accent/20 rounded-lg flex items-center justify-center">
-                <Zap className="w-6 h-6 text-terminal-accent" />
+              <div className="w-10 h-10 bg-[#00d4ff]/20 rounded-lg flex items-center justify-center">
+                <Zap className="w-6 h-6 text-[#00d4ff]" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-terminal-accent glow-text">
-                  NOMAD TERMINAL
+                <h1 className="text-xl font-bold text-[#00d4ff]">
+                  NOMAD TERMINAL v2.0
                 </h1>
-                <p className="text-[10px] text-terminal-textMuted">
-                  Professional Trading Intelligence Platform
+                <p className="text-[10px] text-[#8a8f98]">
+                  Institutional-Grade Trading Intelligence
                 </p>
               </div>
             </div>
 
-            {/* Status Indicators */}
             <div className="hidden md:flex items-center gap-6 text-xs">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-terminal-green animate-pulse" />
-                <span className="text-terminal-textMuted">LIVE</span>
+                <div className={`w-2 h-2 rounded-full ${error ? 'bg-[#ff3366]' : 'bg-[#00ff88]'} animate-pulse`} />
+                <span className="text-[#8a8f98]">{error ? 'ERROR' : 'LIVE'}</span>
               </div>
-              <div className="flex items-center gap-2">
-                <Radio className="w-4 h-4 text-terminal-accent" />
-                <span className="text-terminal-textMuted">
-                  {lastUpdate ? formatTime(lastUpdate) : '--:--:--'}
-                </span>
+              <div className="text-[#8a8f98]">
+                Updates: {updateCount}
               </div>
-              <div className="flex items-center gap-2">
-                <Activity className="w-4 h-4 text-terminal-yellow" />
-                <span className="text-terminal-textMuted">1.3s refresh</span>
-              </div>
-              <div className="bg-terminal-bg px-3 py-1 rounded border border-terminal-border">
-                <span className="text-terminal-accent font-mono font-semibold">
-                  {assets.length}
-                </span>
-                <span className="text-terminal-textMuted ml-1">assets</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Tab Navigation */}
-          <div className="flex items-center gap-2 mt-3">
-            {[
-              { id: 'all' as Tab, label: 'All Assets', icon: BarChart3 },
-              { id: 'majors' as Tab, label: 'Majors', icon: TrendingUp },
-              { id: 'alts' as Tab, label: 'Altcoins', icon: Activity },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`
-                  flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
-                  ${activeTab === tab.id
-                    ? 'bg-terminal-accent text-terminal-bg'
-                    : 'bg-terminal-bg text-terminal-textMuted hover:text-terminal-text hover:bg-terminal-border'
-                  }
-                `}
-              >
-                <tab.icon className="w-4 h-4" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            ))}
-
-            {/* View Mode Toggle */}
-            <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={() => setViewMode('overview')}
-                className={`
-                  px-3 py-2 rounded text-xs transition-all
-                  ${viewMode === 'overview' ? 'bg-terminal-accent text-terminal-bg' : 'bg-terminal-bg text-terminal-textMuted'}
-                `}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setViewMode('detailed')}
-                className={`
-                  px-3 py-2 rounded text-xs transition-all
-                  ${viewMode === 'detailed' ? 'bg-terminal-accent text-terminal-bg' : 'bg-terminal-bg text-terminal-textMuted'}
-                `}
-              >
-                Detailed
-              </button>
+              {globalStats && (
+                <div className="bg-[#0a0e17] px-3 py-1 rounded border border-[#1a1f2e]">
+                  <span className="text-[#00d4ff] font-mono font-semibold">
+                    BTC Dom: {globalStats.dominance.toFixed(2)}%
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </header>
+
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-[#ff3366]/10 border-b border-[#ff3366]/30 px-4 py-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-[#ff3366]" />
+              <span className="text-sm text-[#ff3366]">{error}</span>
+            </div>
+            <button onClick={clearError} className="text-[#ff3366] text-sm hover:underline">
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="p-4 lg:p-6">
         {isLoading && assets.length === 0 ? (
           <div className="flex items-center justify-center h-96">
             <div className="text-center">
-              <div className="w-16 h-16 border-4 border-terminal-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-              <p className="text-terminal-textMuted">Loading market data...</p>
+              <div className="w-16 h-16 border-4 border-[#00d4ff] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+              <p className="text-[#8a8f98]">Loading market data...</p>
             </div>
-          </div>
-        ) : viewMode === 'overview' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {filteredAssets.map(asset => {
-              const assetMetrics = metrics.get(asset.id);
-              return (
-                <AssetCard
-                  key={asset.id}
-                  asset={asset}
-                  fundingRate={assetMetrics?.fundingRate}
-                  openInterest={assetMetrics?.openInterest}
-                  isSelected={selectedAsset === asset.id}
-                  onClick={() => {
-                    setSelectedAsset(asset.id);
-                    setViewMode('detailed');
-                  }}
-                />
-              );
-            })}
           </div>
         ) : (
-          <div className="space-y-4">
-            {/* Asset Selector */}
-            <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4">
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-thin pb-2">
-                {assets.map(asset => (
-                  <button
-                    key={asset.id}
-                    onClick={() => setSelectedAsset(asset.id)}
-                    className={`
-                      flex-shrink-0 px-4 py-2 rounded-lg font-semibold text-sm transition-all
-                      ${selectedAsset === asset.id
-                        ? 'bg-terminal-accent text-terminal-bg'
-                        : 'bg-terminal-bg text-terminal-textMuted hover:text-terminal-text'
-                      }
-                    `}
-                  >
-                    {asset.symbol}
-                  </button>
-                ))}
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+            {/* Asset List */}
+            <div className="lg:col-span-1 space-y-2">
+              <h2 className="text-sm font-semibold text-[#00d4ff] mb-3">TRACKED ASSETS</h2>
+              {assets.map(asset => (
+                <button
+                  key={asset.id}
+                  onClick={() => setSelectedAsset(asset.id)}
+                  className={`
+                    w-full p-3 rounded-lg border transition-all
+                    ${selectedAssetId === asset.id
+                      ? 'bg-[#00d4ff]/10 border-[#00d4ff]'
+                      : 'bg-[#0f1419] border-[#1a1f2e] hover:border-[#00d4ff]/50'
+                    }
+                  `}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="text-left">
+                      <div className="font-semibold text-sm">{asset.symbol.toUpperCase()}</div>
+                      <div className="text-xs text-[#8a8f98]">{asset.name}</div>
+                    </div>
+                    {asset.price_change_percentage_24h > 0 ? (
+                      <TrendingUp className="w-4 h-4 text-[#00ff88]" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4 text-[#ff3366]" />
+                    )}
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <div className="text-sm font-mono">{formatPrice(asset.current_price)}</div>
+                    <div className={`text-xs font-semibold ${
+                      asset.price_change_percentage_24h > 0 ? 'text-[#00ff88]' : 'text-[#ff3366]'
+                    }`}>
+                      {formatPercent(asset.price_change_percentage_24h)}
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
 
-            {selectedMetrics && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                {/* Chart - Takes 2 columns */}
-                <div className="lg:col-span-2 bg-terminal-panel border border-terminal-border rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-terminal-accent">
-                      {selectedMetrics.asset.name} ({selectedMetrics.asset.symbol.toUpperCase()})
-                    </h2>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold font-mono">
-                        ${selectedMetrics.asset.current_price.toFixed(2)}
+            {/* Main Panel */}
+            <div className="lg:col-span-3 space-y-4">
+              {selectedMetrics ? (
+                <>
+                  {/* Price Header */}
+                  <div className="bg-[#0f1419] border border-[#1a1f2e] rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold font-mono">
+                          {formatPrice(selectedMetrics.asset.current_price)}
+                        </h2>
+                        <div className={`text-sm mt-1 ${
+                          selectedMetrics.asset.price_change_percentage_24h > 0 ? 'text-[#00ff88]' : 'text-[#ff3366]'
+                        }`}>
+                          {formatPercent(selectedMetrics.asset.price_change_percentage_24h)} (24h)
+                        </div>
                       </div>
-                      <div className={`text-sm ${
-                        selectedMetrics.asset.price_change_percentage_24h > 0
-                          ? 'text-terminal-green'
-                          : 'text-terminal-red'
-                      }`}>
-                        {selectedMetrics.asset.price_change_percentage_24h > 0 ? '+' : ''}
-                        {selectedMetrics.asset.price_change_percentage_24h.toFixed(2)}%
+                      <div className="text-right">
+                        <div className="text-xs text-[#8a8f98]">Market Cap</div>
+                        <div className="text-lg font-mono">${(selectedMetrics.asset.market_cap / 1e9).toFixed(2)}B</div>
                       </div>
                     </div>
                   </div>
 
-                  <TradingChart
-                    data={selectedMetrics.ohlcv}
-                    signals={selectedMetrics.signals}
-                    fibLevels={selectedMetrics.fibLevels}
-                    height={500}
-                  />
-                </div>
-
-                {/* Metrics Panel */}
-                <div className="space-y-4">
-                  {/* Key Metrics */}
-                  <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-terminal-accent mb-3">
-                      Key Metrics
-                    </h3>
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-terminal-textMuted">24h Volume</span>
-                        <span className="font-mono text-terminal-text">
-                          ${(selectedMetrics.asset.total_volume / 1e9).toFixed(2)}B
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-terminal-textMuted">Market Cap</span>
-                        <span className="font-mono text-terminal-text">
-                          ${(selectedMetrics.asset.market_cap / 1e9).toFixed(2)}B
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-terminal-textMuted">ATH</span>
-                        <span className="font-mono text-terminal-green">
-                          ${selectedMetrics.asset.ath.toFixed(2)}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-terminal-textMuted">ATL</span>
-                        <span className="font-mono text-terminal-red">
-                          ${selectedMetrics.asset.atl.toFixed(2)}
-                        </span>
-                      </div>
-                      {selectedMetrics.fundingRate && (
-                        <div className="flex justify-between pt-2 border-t border-terminal-border">
-                          <span className="text-terminal-textMuted">Funding Rate</span>
-                          <span className={`font-mono ${
-                            selectedMetrics.fundingRate.fundingRate > 0
-                              ? 'text-terminal-green'
-                              : 'text-terminal-red'
-                          }`}>
-                            {(selectedMetrics.fundingRate.fundingRate * 100).toFixed(4)}%
-                          </span>
+                  {/* Technical Indicators */}
+                  <div className="bg-[#0f1419] border border-[#1a1f2e] rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-[#00d4ff] mb-3">TECHNICAL INDICATORS</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <div className="text-xs text-[#8a8f98]">RSI (14)</div>
+                        <div className={`text-lg font-mono ${
+                          selectedMetrics.technicalIndicators.rsi < 30 ? 'text-[#00ff88]' :
+                          selectedMetrics.technicalIndicators.rsi > 70 ? 'text-[#ff3366]' :
+                          'text-[#e0e0e0]'
+                        }`}>
+                          {selectedMetrics.technicalIndicators.rsi.toFixed(2)}
                         </div>
-                      )}
-                      {selectedMetrics.openInterest && (
-                        <div className="flex justify-between">
-                          <span className="text-terminal-textMuted">Open Interest</span>
-                          <span className="font-mono text-terminal-accent">
-                            ${(selectedMetrics.openInterest.openInterestValue / 1e9).toFixed(2)}B
-                          </span>
+                      </div>
+                      <div>
+                        <div className="text-xs text-[#8a8f98]">MACD</div>
+                        <div className={`text-lg font-mono ${
+                          selectedMetrics.technicalIndicators.macd.histogram > 0 ? 'text-[#00ff88]' : 'text-[#ff3366]'
+                        }`}>
+                          {selectedMetrics.technicalIndicators.macd.macd.toFixed(2)}
                         </div>
-                      )}
+                      </div>
+                      <div>
+                        <div className="text-xs text-[#8a8f98]">Volume</div>
+                        <div className={`text-lg font-mono ${
+                          selectedMetrics.technicalIndicators.volumeProfile.volumeTrend === 'increasing' ? 'text-[#00ff88]' :
+                          selectedMetrics.technicalIndicators.volumeProfile.volumeTrend === 'decreasing' ? 'text-[#ff3366]' :
+                          'text-[#e0e0e0]'
+                        }`}>
+                          {formatPercent(selectedMetrics.technicalIndicators.volumeProfile.volumeChange)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-[#8a8f98]">EMA 12/26</div>
+                        <div className={`text-lg font-mono ${
+                          selectedMetrics.technicalIndicators.ema.ema12 > selectedMetrics.technicalIndicators.ema.ema26
+                            ? 'text-[#00ff88]' : 'text-[#ff3366]'
+                        }`}>
+                          {selectedMetrics.technicalIndicators.ema.ema12 > selectedMetrics.technicalIndicators.ema.ema26
+                            ? 'Bullish' : 'Bearish'}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Trading Signals */}
+                  {/* Trading Signal */}
                   {selectedMetrics.signals.length > 0 && (
-                    <div className="bg-terminal-panel border border-terminal-border rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-terminal-accent mb-3">
-                        Trading Signals
-                      </h3>
-                      <div className="space-y-2">
-                        {selectedMetrics.signals.slice(-5).reverse().map((signal, i) => (
-                          <div
-                            key={i}
-                            className="bg-terminal-bg rounded p-2 border-l-2"
-                            style={{
-                              borderLeftColor: signal.type === 'BUY' ? '#00ff88' : '#ff3366'
-                            }}
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <span className={`font-semibold text-xs ${
-                                signal.type === 'BUY' ? 'text-terminal-green' : 'text-terminal-red'
-                              }`}>
-                                {signal.type}
-                              </span>
-                              <span className="text-[10px] text-terminal-textMuted">
-                                {new Date(signal.timestamp).toLocaleTimeString()}
-                              </span>
+                    <div className="bg-[#0f1419] border border-[#1a1f2e] rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-[#00d4ff] mb-3">TRADING SIGNAL</h3>
+                      {selectedMetrics.signals.map((signal, i) => (
+                        <div key={i} className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className={`text-2xl font-bold ${
+                              signal.type === 'BUY' ? 'text-[#00ff88]' :
+                              signal.type === 'SELL' ? 'text-[#ff3366]' :
+                              'text-[#ffcc00]'
+                            }`}>
+                              {signal.type}
                             </div>
-                            <div className="text-[10px] text-terminal-textMuted">
-                              {signal.reason}
+                            <div className="text-right">
+                              <div className="text-xs text-[#8a8f98]">Confidence</div>
+                              <div className="text-lg font-mono">{signal.confidence.toFixed(0)}%</div>
                             </div>
+                          </div>
+                          <div className="text-sm text-[#8a8f98]">{signal.reasoning}</div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {signal.indicators.map((ind, j) => (
+                              <div key={j} className="bg-[#0a0e17] rounded p-2">
+                                <div className="text-[10px] text-[#8a8f98]">{ind.name}</div>
+                                <div className={`text-xs font-semibold ${
+                                  ind.signal === 'bullish' ? 'text-[#00ff88]' :
+                                  ind.signal === 'bearish' ? 'text-[#ff3366]' :
+                                  'text-[#8a8f98]'
+                                }`}>
+                                  {ind.value}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Fibonacci Levels */}
+                  {selectedMetrics.fibonacciLevels.length > 0 && (
+                    <div className="bg-[#0f1419] border border-[#1a1f2e] rounded-lg p-4">
+                      <h3 className="text-sm font-semibold text-[#00d4ff] mb-3">FIBONACCI LEVELS</h3>
+                      <div className="space-y-1">
+                        {selectedMetrics.fibonacciLevels.map((fib, i) => (
+                          <div key={i} className="flex justify-between text-sm">
+                            <span className="text-[#8a8f98]">{fib.label}</span>
+                            <span className="font-mono">{formatPrice(fib.price)}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
+                </>
+              ) : (
+                <div className="bg-[#0f1419] border border-[#1a1f2e] rounded-lg p-8 text-center">
+                  <Activity className="w-16 h-16 text-[#8a8f98] mx-auto mb-4" />
+                  <p className="text-[#8a8f98]">Select an asset to view detailed metrics</p>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </main>
 
       {/* Mobile Status Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-terminal-panel border-t border-terminal-border px-4 py-2">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0f1419] border-t border-[#1a1f2e] px-4 py-2">
         <div className="flex items-center justify-between text-xs">
           <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-terminal-green animate-pulse" />
-            <span className="text-terminal-textMuted">LIVE</span>
+            <div className="w-2 h-2 rounded-full bg-[#00ff88] animate-pulse" />
+            <span className="text-[#8a8f98]">LIVE • 1.3s</span>
           </div>
-          <span className="text-terminal-textMuted">
-            {lastUpdate ? formatTime(lastUpdate) : '--:--:--'}
-          </span>
-          <span className="text-terminal-yellow">1.3s refresh</span>
+          <span className="text-[#8a8f98]">Updates: {updateCount}</span>
         </div>
       </div>
     </div>
