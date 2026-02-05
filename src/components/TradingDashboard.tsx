@@ -1,8 +1,12 @@
 import { useEffect } from 'react';
 import { useMarketStore, startAutoRefresh, stopAutoRefresh } from '../store/marketStore';
-import { TrendingUp, TrendingDown, Activity, Zap, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Zap, AlertCircle, BarChart3 } from 'lucide-react';
 
-export default function TradingDashboard() {
+interface TradingDashboardProps {
+  onNavigateToInsights?: () => void;
+}
+
+export default function TradingDashboard({ onNavigateToInsights }: TradingDashboardProps) {
   const {
     assets,
     selectedAssetId,
@@ -66,6 +70,15 @@ export default function TradingDashboard() {
                     BTC Dom: {globalStats.dominance.toFixed(2)}%
                   </span>
                 </div>
+              )}
+              {onNavigateToInsights && (
+                <button
+                  onClick={onNavigateToInsights}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#00ff88]/10 border border-[#00ff88]/30 rounded hover:bg-[#00ff88]/20 transition-colors"
+                >
+                  <BarChart3 className="w-4 h-4 text-[#00ff88]" />
+                  <span className="text-[#00ff88] font-semibold">Insights</span>
+                </button>
               )}
             </div>
           </div>
